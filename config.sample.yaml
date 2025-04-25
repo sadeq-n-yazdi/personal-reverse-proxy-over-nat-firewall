@@ -1,0 +1,57 @@
+# Personal-Grok Sample Configuration
+
+# Docker configuration
+docker:
+  compose_file: docker-compose.yml
+  network: proxy-network
+  containers:
+    nginx:
+      image: nginx:alpine
+      restart_policy: unless-stopped
+    certbot:
+      image: certbot/certbot
+      restart_policy: unless-stopped
+
+# Nginx configuration
+nginx:
+  ssl:
+    protocols: TLSv1.2 TLSv1.3
+    ciphers: ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384
+    session_timeout: 1d
+    session_cache: shared:SSL:10m
+    enable_hsts: false
+  
+  proxy:
+    timeout:
+      connect: 60s
+      send: 60s
+      read: 60s
+    websocket_support: false
+  
+  paths:
+    config: /etc/nginx/conf.d
+    logs: /var/log/nginx
+    certs: /etc/letsencrypt
+
+# Domain configuration
+domains:
+  - name: api.example.com
+    local_port: 8000
+    allowed_ips:
+      - 203.0.113.1
+      - 203.0.113.2
+  
+  - name: app.example.com
+    local_port: 3000
+    allowed_ips:
+      - 203.0.113.1
+
+# SSH tunnel configuration
+ssh:
+  server:
+    user: root
+    port: 22
+  tunnel:
+    remote_port_range:
+      start: 8000
+      end: 9000

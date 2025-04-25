@@ -71,7 +71,17 @@ The following environment variables need to be set:
 - `SERVER_IP`: Your VPS IP address
 - `SERVER_USER`: SSH user for your VPS (default: root)
 
-These are set during the setup process and stored in the `.env` file.
+These are set during the setup process and stored in the `.env` file. A sample environment file (`.env.sample`) is provided with the project.
+
+### Sample Configuration Files
+
+The project includes several sample configuration files to help you get started:
+
+- `.env.sample`: Example environment variables file
+- `nginx/sample.conf`: Sample Nginx configuration with SSL and security settings
+- `config.sample.yaml`: Example configuration for multiple domains and advanced settings
+
+Copy and modify these files according to your needs:
 
 ### Getting Required API Keys and IDs
 
