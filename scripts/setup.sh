@@ -27,7 +27,13 @@ source venv/bin/activate
 ./venv/bin/pip install uv
 
 # Install Python dependencies using uv
-./venv/bin/uv pip install requests
+./venv/bin/uv pip install -r requirements.txt
+
+# Install development dependencies
+./venv/bin/uv pip install -e ".[dev]"
+
+# Set up pre-commit hooks
+./venv/bin/pre-commit install
 
 # Set up environment variables
 read -p "Enter Cloudflare API Token: " CF_API_TOKEN
