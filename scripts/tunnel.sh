@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Activate virtual environment if it exists
+if [ -d "venv" ]; then
+  source venv/bin/activate
+fi
+
 # Load environment variables
 if [ -f .env ]; then
   export $(cat .env | xargs)

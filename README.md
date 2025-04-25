@@ -28,6 +28,7 @@ sudo bash scripts/setup.sh
 
 This will:
 - Install necessary dependencies (Docker, Docker Compose, Python)
+- Set up Python virtual environment with uv package manager
 - Set up environment variables
 - Start the Docker services
 

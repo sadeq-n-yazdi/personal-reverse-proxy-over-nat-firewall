@@ -9,11 +9,25 @@ fi
 
 # Install dependencies
 apt-get update
-apt-get install -y docker.io docker-compose python3 python3-pip
+apt-get install -y docker.io docker-compose python3 python3-venv curl
 
 # Create required directories
 mkdir -p logs
 mkdir -p certs
+mkdir -p venv
+
+# Set up Python environment with uv
+python3 -m venv venv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install uv in the virtual environment
+./venv/bin/pip install uv
+
+# Install Python dependencies using uv
+./venv/bin/uv pip install requests
 
 # Set up environment variables
 read -p "Enter Cloudflare API Token: " CF_API_TOKEN
@@ -34,15 +48,19 @@ SERVER_IP=$SERVER_IP
 SERVER_USER=$SERVER_USER
 EOF
 
-# Install Python dependencies
-pip3 install requests
-
 # Make scripts executable
 chmod +x cli/cli.py
 chmod +x scripts/tunnel.sh
 
-# Create symbolic link
-ln -sf $(pwd)/cli/cli.py /usr/local/bin/proxy-manager
+# Create wrapper script for proxy-manager
+cat > /usr/local/bin/proxy-manager << EOF
+#!/bin/bash
+source $(pwd)/venv/bin/activate
+$(pwd)/cli/cli.py \$@
+EOF
+
+# Make wrapper executable
+chmod +x /usr/local/bin/proxy-manager
 
 # Start services
 docker-compose up -d

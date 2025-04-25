@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# This script runs inside the virtual environment created in setup.sh
 import argparse
 import os
 import sys
