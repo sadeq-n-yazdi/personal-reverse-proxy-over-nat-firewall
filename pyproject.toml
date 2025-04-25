@@ -18,9 +18,12 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.2.0",
-    "pre-commit>=3.0.0",
+    "ruff>=0.2.1",
+    "pre-commit>=3.5.0",
 ]
+
+[project.scripts]
+proxy-manager = "personal_grok.cli:main"
 
 [tool.ruff]
 # Enable flake8-bugbear (`B`) rules.

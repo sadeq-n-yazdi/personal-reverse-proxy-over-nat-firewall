@@ -26,10 +26,7 @@ source venv/bin/activate
 # Install uv in the virtual environment
 ./venv/bin/pip install uv
 
-# Install Python dependencies using uv
-./venv/bin/uv pip install -r requirements.txt
-
-# Install development dependencies
+# Install project in development mode with all dependencies
 ./venv/bin/uv pip install -e ".[dev]"
 
 # Set up pre-commit hooks
@@ -58,12 +55,11 @@ EOF
 chmod +x cli/cli.py
 chmod +x scripts/tunnel.sh
 
-# Create wrapper script for proxy-manager
-cat > /usr/local/bin/proxy-manager << EOF
-#!/bin/bash
-source $(pwd)/venv/bin/activate
-$(pwd)/cli/cli.py \$@
-EOF
+# Add project root to environment variables
+echo "PROJECT_ROOT=$(pwd)" >> .env
+
+# Set up project for development
+export PROJECT_ROOT=$(pwd)
 
 # Make wrapper executable
 chmod +x /usr/local/bin/proxy-manager
