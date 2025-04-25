@@ -81,4 +81,6 @@ These are set during the setup process and stored in the `.env` file.
 
 ## License
 
-MIT
+This project is created by Sadeq N. Yazdi and published under the MIT License without any warranty.
+
+See the [LICENSE](LICENSE) file for details or visit the [Open Source Initiative MIT License page](https://opensource.org/licenses/MIT) for more information.
