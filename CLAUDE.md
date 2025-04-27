@@ -1,7 +1,7 @@
 # Instructions for Claude
 
 ## Project Overview
-Personal-Grok is a reverse proxy service application that runs on a Debian VPS. It manages Nginx configurations and creates secure tunnels for exposing services behind NAT. The project provides a CLI tool for managing proxy services and secure tunnels for developers working behind firewalls.
+Personal-Reverse-Proxy-Over-Firewall is a reverse proxy service application that runs on a Debian VPS. It manages Nginx configurations and creates secure tunnels for exposing services behind NAT. The project provides a CLI tool for managing proxy services and secure tunnels for developers working behind firewalls.
 
 ## AI Agent Guidelines
 
@@ -79,7 +79,7 @@ proxy-manager tunnel --local-port 3000 --remote-port 8080
 ## Project Structure
 - `docker-compose.yml`: Main service configuration
 - `nginx/`: Nginx configuration templates and generated configs
-- `personal_grok/`: Python package with CLI tools
+- `yazdi_prpon/`: Python package with CLI tools
 - `scripts/`: Setup and utility scripts
 - `certs/`: SSL certificate storage (managed by certbot)
 - `CONTRIBUTING.md`: Guidelines for contributors

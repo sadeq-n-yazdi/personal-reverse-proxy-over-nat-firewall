@@ -1,13 +1,13 @@
-# Contributing to Personal-Grok
+# Contributing to Personal-Reverse-Proxy-Over-Firewall
 
-Thank you for your interest in contributing to the Personal-Grok project! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to the Personal-Reverse-Proxy-Over-Firewall project! This document provides guidelines and instructions for contributing.
 
 ## Development Setup
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/sadeq-n-yazdi/personal-grok.git
-   cd personal-grok
+   git clone https://github.com/sadeq-n-yazdi/personal-reverse-proxy-over-firewall.git
+   cd personal-reverse-proxy-over-firewall
    ```
 
 2. Create and activate a virtual environment:
@@ -60,7 +60,7 @@ uv run ruff format .
 
 - `docker-compose.yml`: Main service configuration
 - `nginx/`: Nginx configuration templates and generated configs
-- `personal_grok/`: Python package with CLI tools
+- `yazdi_prpon/`: Python package with CLI tools
 - `scripts/`: Setup and utility scripts
 - `certs/`: SSL certificate storage (managed by certbot)
 
@@ -82,4 +82,4 @@ Update documentation when making changes to the code:
 
 ## License
 
-By contributing to Personal-Grok, you agree that your contributions will be licensed under the project's MIT License.
+By contributing to Personal-Reverse-Proxy-Over-Firewall, you agree that your contributions will be licensed under the project's MIT License.

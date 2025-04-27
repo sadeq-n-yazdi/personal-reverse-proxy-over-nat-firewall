@@ -1,0 +1,14 @@
+#!/bin/bash
+# Wrapper script for proxy-manager command
+# This should be placed in /usr/local/bin and made executable
+
+# Find the project root directory
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Activate the virtual environment
+if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
+    source "$PROJECT_ROOT/venv/bin/activate"
+fi
+
+# Run the command using the installed package
+python -m yazdi_prpon.cli "$@"

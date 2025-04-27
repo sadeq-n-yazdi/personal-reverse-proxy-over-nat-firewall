@@ -1,4 +1,4 @@
-# Personal Grok Reverse Proxy Manager
+# Personal Reverse Proxy Over Firewall
 
 A service application that runs on a Debian VPS and allows you to manage an Nginx reverse proxy for exposing local services behind NAT.
 
@@ -16,8 +16,8 @@ A service application that runs on a Debian VPS and allows you to manage an Ngin
 1. Clone this repository to your Debian VPS:
 
 ```bash
-git clone https://github.com/yourusername/personal-grok.git
-cd personal-grok
+git clone https://github.com/yourusername/personal-reverse-proxy-over-firewall.git
+cd personal-reverse-proxy-over-firewall
 ```
 
 2. Run the setup script:
@@ -92,7 +92,7 @@ Copy and modify these files according to your needs:
 3. Select "API Tokens" from the left menu
 4. Click "Create Token"
 5. Select "Create Custom Token"
-6. Give it a name (e.g., "Personal-Grok")
+6. Give it a name (e.g., "Personal-Reverse-Proxy-Over-Firewall")
 7. Under "Permissions":
    - Zone - DNS - Edit
    - Zone - SSL and Certificates - Edit
@@ -141,6 +141,14 @@ ssh-copy-id user@your-vps-ip
 - Only specific IP addresses can access the proxy
 - All connections use SSL/TLS
 - SSH tunnels are used for secure communication
+
+## AI Assistance
+
+This project was developed with the assistance of Claude Code AI agent by Anthropic. Claude Code helped with:
+- Package structure and organization
+- Code linting and formatting
+- Documentation improvements
+- Best practices implementation
 
 ## License
 
