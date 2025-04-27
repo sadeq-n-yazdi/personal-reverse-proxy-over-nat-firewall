@@ -214,18 +214,44 @@ success "PROJECT_ROOT added to environment variables"
 # Set up project for development
 export PROJECT_ROOT=$(pwd)
 
-# Make wrapper executable
+# Create and install proxy-manager command wrapper
 info "Setting up proxy-manager command..."
-if [ -f /usr/local/bin/proxy-manager ]; then
-  chmod +x /usr/local/bin/proxy-manager || handle_error 32 "Failed to make proxy-manager executable"
-  success "proxy-manager command set up successfully"
-else
-  handle_error 33 "proxy-manager command not found in /usr/local/bin"
+WRAPPER_PATH="/usr/local/bin/proxy-manager"
+cat > $WRAPPER_PATH << 'EOFWRAPPER' || handle_error 32 "Failed to create proxy-manager wrapper"
+#!/bin/bash
+# Proxy Manager wrapper script
+
+# Source environment if available
+if [ -f ~/.proxy-manager-env ]; then
+  source ~/.proxy-manager-env
 fi
+
+# Get the project directory
+PROJECT_DIR=${PROJECT_ROOT:-$(dirname $(dirname $(readlink -f $0)))}
+
+# Activate virtual environment if it exists
+if [ -f "${PROJECT_DIR}/.venv/bin/activate" ]; then
+  source "${PROJECT_DIR}/.venv/bin/activate"
+fi
+
+# Execute the CLI script
+python3 "${PROJECT_DIR}/yazdi_prpon/cli.py" "$@"
+EOFWRAPPER
+
+chmod +x $WRAPPER_PATH || handle_error 33 "Failed to make proxy-manager wrapper executable"
+
+# Store environment for the wrapper
+info "Saving environment for proxy-manager wrapper..."
+PROJECT_ROOT_ABS=$(realpath .)
+cat > ~/.proxy-manager-env << EOF || handle_error 34 "Failed to create environment file"
+PROJECT_ROOT="${PROJECT_ROOT_ABS}"
+EOF
+
+success "proxy-manager command set up successfully"
 
 # Start services
 info "Starting Docker services..."
-docker-compose up -d || handle_error 34 "Failed to start Docker services"
+docker-compose up -d || handle_error 35 "Failed to start Docker services"
 success "Docker services started successfully"
 
 echo "${GREEN}-----------------------------------------${NORMAL}"

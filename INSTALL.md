@@ -83,6 +83,9 @@ curl -I http://localhost
 
 # Check if proxy-manager command is available
 which proxy-manager
+
+# Test the proxy-manager command
+proxy-manager --help
 ```
 
 ## Client Installation (Local Machine)
