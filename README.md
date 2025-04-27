@@ -11,7 +11,22 @@ A service application that runs on a Debian VPS and allows you to manage an Ngin
 - CLI tool for easy management
 - SSH tunnel creation similar to `ssh -R`
 
-## Installation
+## Overview
+
+This tool consists of two main components:
+
+1. **Server Component**: Runs on your Debian VPS and manages the Nginx reverse proxy
+2. **Client Component**: Runs on your local machine where your services are hosted
+
+## Server Setup (VPS)
+
+### Requirements
+
+- Debian-based VPS (Ubuntu/Debian)
+- Root access
+- Ports 80, 443, and SSH port open
+
+### Installation Steps
 
 1. Clone this repository to your Debian VPS:
 
@@ -26,17 +41,93 @@ cd personal-reverse-proxy-over-firewall
 sudo bash scripts/setup.sh
 ```
 
-This will:
-- Install necessary dependencies (Docker, Docker Compose, Python)
+The setup script will:
+- Install necessary dependencies (Docker, Docker Compose, Python3)
 - Set up Python virtual environment with uv package manager
+- Install SSL certificates via Certbot
+- Configure Nginx as a reverse proxy
 - Set up environment variables
 - Start the Docker services
 
-## Usage
+3. During setup, you'll be prompted to enter:
+   - Cloudflare API Token
+   - Cloudflare Zone ID
+   - Cloudflare Email
+   - Base Domain
+   - Server IP
+   - Server SSH User
 
-### Setting up a new proxy
+These values are stored in a `.env` file for future use.
+
+### Verifying Server Setup
 
 ```bash
+# Check if Docker services are running
+docker ps
+
+# Verify Nginx is running
+curl -I http://localhost
+
+# Check that the proxy-manager command is available
+which proxy-manager
+```
+
+## Client Setup (Local Machine)
+
+### Requirements
+
+- Python 3.8+
+- SSH client
+- Local service you want to expose
+
+### Installation Steps
+
+1. Clone the repository to your local machine:
+
+```bash
+git clone https://github.com/yourusername/personal-reverse-proxy-over-firewall.git
+cd personal-reverse-proxy-over-firewall
+```
+
+2. Set up SSH key authentication:
+
+```bash
+# Generate SSH key if you don't have one
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# Copy key to VPS
+ssh-copy-id user@your-vps-ip
+```
+
+3. Create a local configuration file:
+
+```bash
+cp config.sample.yaml config.yaml
+```
+
+4. Edit the configuration with your details:
+
+```yaml
+server:
+  host: your-vps-ip
+  user: your-ssh-user
+  port: 22  # SSH port, usually 22
+
+domains:
+  - subdomain: myapp
+    local_port: 3000
+    remote_port: 8080
+    allowed_ips:
+      - 192.168.1.1
+      - 203.0.113.1
+```
+
+## Usage
+
+### Setting Up a New Proxy (VPS)
+
+```bash
+# On your VPS
 proxy-manager setup --subdomain myapp --local-port 3000 --allowed-ip 203.0.113.1
 ```
 
@@ -46,23 +137,79 @@ This will:
 3. Create an Nginx configuration with IP restrictions
 4. Restart Nginx to apply the changes
 
-### Creating a tunnel from your local machine
+### Creating a Tunnel from Your Local Machine
 
 ```bash
+# On your local machine
 proxy-manager tunnel --local-port 3000 --remote-port 8080
 ```
 
-This will output an SSH command to create a reverse tunnel:
+Or use the included script:
+
+```bash
+# On your local machine
+bash scripts/tunnel.sh 3000 8080
+```
+
+This will create an SSH tunnel between your local machine and the VPS, exposing your local service (running on port 3000) through the VPS.
+
+### Accessing Your Service
+
+After setting up both the proxy and the tunnel, your service will be accessible at:
 
 ```
-ssh -R 8080:localhost:3000 user@your-vps-ip
+https://myapp.yourdomain.com
 ```
 
-Run this command on your local machine to expose your local service.
+The traffic flow works as follows:
+1. Client makes request to `https://myapp.yourdomain.com`
+2. Request reaches your VPS
+3. Nginx on VPS forwards the request through the SSH tunnel
+4. Your local service receives the request and responds
+5. Response travels back through the same path to the client
+
+## Advanced Usage
+
+### Managing Multiple Services
+
+You can set up multiple proxies and tunnels for different services:
+
+```bash
+# On VPS: Set up multiple proxies
+proxy-manager setup --subdomain app1 --local-port 3000 --allowed-ip 203.0.113.1
+proxy-manager setup --subdomain app2 --local-port 3001 --allowed-ip 203.0.113.1
+
+# On local machine: Create tunnels for each service
+bash scripts/tunnel.sh 3000 8080
+bash scripts/tunnel.sh 3001 8081
+```
+
+### Using Different Local and Remote Ports
+
+The local port (on your development machine) and remote port (on the VPS) can be different:
+
+```bash
+# Example: Local service on port 5000, tunnel using port 8080 on VPS
+bash scripts/tunnel.sh 5000 8080
+```
+
+### Persistent Tunnels
+
+For long-running tunnels, you can use tools like `autossh` or `systemd` service:
+
+```bash
+# Install autossh
+sudo apt-get install autossh
+
+# Create persistent tunnel
+autossh -M 0 -o "ServerAliveInterval 30" -o "ServerAliveCountMax 3" -R 8080:localhost:3000 user@your-vps-ip -N
+```
 
 ## Configuration
 
-The following environment variables need to be set:
+### Environment Variables
+
+The following environment variables are used:
 
 - `CF_API_TOKEN`: Cloudflare API token
 - `CF_ZONE_ID`: Cloudflare Zone ID for your domain
@@ -71,17 +218,15 @@ The following environment variables need to be set:
 - `SERVER_IP`: Your VPS IP address
 - `SERVER_USER`: SSH user for your VPS (default: root)
 
-These are set during the setup process and stored in the `.env` file. A sample environment file (`.env.sample`) is provided with the project.
+These are set during the setup process and stored in the `.env` file.
 
 ### Sample Configuration Files
 
-The project includes several sample configuration files to help you get started:
+The project includes several sample configuration files:
 
+- `config.sample.yaml`: Example configuration for multiple domains
 - `.env.sample`: Example environment variables file
 - `nginx/sample.conf`: Sample Nginx configuration with SSL and security settings
-- `config.sample.yaml`: Example configuration for multiple domains and advanced settings
-
-Copy and modify these files according to your needs:
 
 ### Getting Required API Keys and IDs
 
@@ -110,45 +255,86 @@ Copy and modify these files according to your needs:
 4. Your Zone ID is displayed there
 5. Copy this ID for use in the setup
 
-#### Let's Encrypt / Certbot
-
-No API key is needed for Let's Encrypt. Certbot will automatically:
-1. Generate certificates
-2. Verify domain ownership through HTTP challenges
-3. Install certificates
-4. Configure automatic renewal
-
-Ensure port 80 is open on your VPS for the HTTP challenge to work.
-
-#### SSH Setup for Tunneling
-
-For the SSH tunneling to work properly:
-1. Ensure your VPS has SSH access enabled
-2. Configure key-based authentication for better security
-3. Make sure the user has appropriate permissions
-4. Configure your VPS firewall to allow the necessary ports
-
-```bash
-# Example: Generate SSH key on your local machine
-ssh-keygen -t ed25519 -C "your_email@example.com"
-
-# Copy key to VPS
-ssh-copy-id user@your-vps-ip
-```
-
 ## Security Considerations
 
-- Only specific IP addresses can access the proxy
-- All connections use SSL/TLS
-- SSH tunnels are used for secure communication
+### IP Restrictions
 
-## AI Assistance
+By default, the proxy requires IP address restrictions. This means only specified IP addresses can access your services.
 
-This project was developed with the assistance of Claude Code AI agent by Anthropic. Claude Code helped with:
-- Package structure and organization
-- Code linting and formatting
-- Documentation improvements
-- Best practices implementation
+```bash
+# Restrict access to specific IPs
+proxy-manager setup --subdomain myapp --local-port 3000 --allowed-ip 203.0.113.1,198.51.100.1
+```
+
+### SSL/TLS
+
+All connections use SSL/TLS encryption through Let's Encrypt certificates.
+
+### SSH Security
+
+For better security:
+1. Use key-based authentication (disable password authentication)
+2. Use a non-root user with appropriate permissions
+3. Consider changing the default SSH port
+
+```bash
+# On VPS: Edit SSH config
+sudo nano /etc/ssh/sshd_config
+
+# Set the following:
+PasswordAuthentication no
+PermitRootLogin prohibit-password
+Port 2222  # Change to a non-standard port
+
+# Restart SSH
+sudo systemctl restart sshd
+```
+
+### Firewall Configuration
+
+Configure your firewall to only allow necessary ports:
+
+```bash
+# On VPS: Set up UFW firewall
+sudo apt-get install ufw
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 2222/tcp  # If you changed SSH port
+sudo ufw enable
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### SSH Tunnel Not Working
+
+```bash
+# Check if SSH tunnel is active
+ps aux | grep ssh
+
+# If not active, restart the tunnel
+bash scripts/tunnel.sh 3000 8080
+```
+
+#### Nginx Configuration Issues
+
+```bash
+# Check Nginx configuration
+docker exec nginx nginx -t
+
+# Restart Nginx
+docker exec nginx nginx -s reload
+```
+
+#### Certificate Issues
+
+```bash
+# Request new certificates
+docker exec certbot certbot renew --force-renewal
+```
 
 ## License
 
