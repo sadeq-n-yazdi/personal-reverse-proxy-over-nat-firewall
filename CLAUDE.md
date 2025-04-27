@@ -120,6 +120,7 @@ When requesting assistance from Claude or other AI assistants:
 - Provide context about the issue or feature you're addressing
 - Specify constraints (e.g., "maintain backward compatibility")
 - Ask for explanation of any unclear recommendations
+- Never include AI assistant names in commit messages
 
 ### For Security-Related Changes
 When requesting changes that involve:
