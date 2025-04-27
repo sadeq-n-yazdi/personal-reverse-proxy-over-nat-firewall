@@ -8,7 +8,19 @@ fi
 
 # Load environment variables
 if [ -f .env ]; then
-  export $(cat .env | xargs)
+  # Use set -a to export all variables automatically
+  set -a
+  . .env || { echo "Error: Failed to load .env file, check for syntax errors"; exit 1; }
+  set +a
+  
+  # Verify required environment variables are set
+  if [ -z "$SERVER_USER" ] || [ -z "$SERVER_IP" ]; then
+    echo "Error: Required environment variables (SERVER_USER, SERVER_IP) not found in .env file"
+    exit 1
+  fi
+else
+  echo "Error: .env file not found. Run setup.sh first"
+  exit 1
 fi
 
 # Check parameters

@@ -146,7 +146,10 @@ success "Dependencies synced successfully"
 info "Setting up environment variables..."
 if [ -f .env ]; then
   info "Loading existing environment variables from .env file"
-  source .env || handle_error 22 "Failed to load .env file"
+  # Use . instead of source for better compatibility
+  . .env || warning "Failed to load .env file, proceeding with user input only"
+else
+  warning "No .env file found, proceeding with user input only"
 fi
 
 # Ask for each value, using existing values as defaults if available
