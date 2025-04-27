@@ -3,6 +3,23 @@
 ## Project Overview
 Personal-Reverse-Proxy-Over-Firewall is a reverse proxy service application that runs on a Debian VPS. It manages Nginx configurations and creates secure tunnels for exposing services behind NAT. The project provides a CLI tool for managing proxy services and secure tunnels for developers working behind firewalls.
 
+## Architecture
+
+The project has two main components:
+
+1. **Server Component** (runs on VPS):
+   - Nginx reverse proxy in Docker container
+   - Certbot for SSL certificate management
+   - Configuration management through CLI
+
+2. **Client Component** (runs on local machine):
+   - SSH tunnel creation tools
+   - Configuration for connecting to VPS
+
+The connection flow is:
+- Client requests → VPS with Nginx → SSH tunnel → Local service
+- Responses follow the reverse path
+
 ## AI Agent Guidelines
 
 ### General Approach
@@ -29,6 +46,8 @@ When working with this codebase, follow these general guidelines:
 - Ensure proper handling of SSL certificates
 - Implement proper authentication for all endpoints
 - Be cautious with any file operations to prevent path traversal
+- Pay special attention to .env file handling to prevent leaks
+- Verify SSH tunnel security practices
 
 ### Code Quality Standards
 - Follow PEP 8 with 120 character line length
@@ -38,8 +57,21 @@ When working with this codebase, follow these general guidelines:
 - Avoid complex nested conditions
 - Keep functions focused on a single responsibility
 - Ensure proper error handling
+- Use colored output consistently for user-facing scripts
 
 ## Development Workflow
+
+### Environment Setup
+Always use the virtual environment for development:
+
+```bash
+# Create and activate virtual environment with uv
+uv venv
+source .venv/bin/activate
+
+# Install in development mode
+uv pip install -e ".[dev]"
+```
 
 ### Code Quality Checks
 Before committing changes, run the following commands:
@@ -53,18 +85,6 @@ uv run ruff format .
 pre-commit run --all-files
 ```
 
-### Environment Setup
-Always use the virtual environment for development:
-
-```bash
-# Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install in development mode
-uv pip install -e ".[dev]"
-```
-
 ### CLI Commands
 The CLI tool provides commands for managing proxies:
 
@@ -76,12 +96,39 @@ proxy-manager setup --subdomain myapp --local-port 3000 --allowed-ip 203.0.113.1
 proxy-manager tunnel --local-port 3000 --remote-port 8080
 ```
 
+### Testing Changes
+Test changes in both server (VPS) and client (local machine) contexts:
+
+1. Server testing:
+   ```bash
+   # Verify Nginx config
+   docker exec nginx nginx -t
+   
+   # Reload Nginx
+   docker exec nginx nginx -s reload
+   
+   # Check logs
+   docker logs nginx
+   ```
+
+2. Client testing:
+   ```bash
+   # Test tunnel script
+   bash scripts/tunnel.sh 3000 8080
+   
+   # Verify connection
+   curl -I https://subdomain.yourdomain.com
+   ```
+
 ## Project Structure
 - `docker-compose.yml`: Main service configuration
 - `nginx/`: Nginx configuration templates and generated configs
 - `yazdi_prpon/`: Python package with CLI tools
 - `scripts/`: Setup and utility scripts
+  - `setup.sh`: Server setup script
+  - `tunnel.sh`: Client tunnel creation script
 - `certs/`: SSL certificate storage (managed by certbot)
+- `config.sample.yaml`: Example configuration
 - `CONTRIBUTING.md`: Guidelines for contributors
 - `LICENSE`: MIT License information
 - `CLAUDE.md`: Instructions for Claude AI assistant
@@ -93,6 +140,9 @@ proxy-manager tunnel --local-port 3000 --remote-port 8080
 - Maintain clean code structure with proper imports
 - Use virtual environments for all Python work
 - All changes must be properly documented
+- Use colored output in scripts for better UX
+- Add proper error handling for shell scripts
+- Check for required dependencies before operations
 
 ## Licensing
 This project is created by Sadeq N. Yazdi and published under the MIT License without any warranty. See the LICENSE file for details.
@@ -111,6 +161,22 @@ Pre-commit hooks are set up to ensure code quality:
 - Certbot for SSL certificate management
 - Python 3.8+ with virtual environment
 - Uv for Python package management
+- SSH client for tunnel creation
+- Cloudflare API for DNS management
+
+## Recent Fixes and Improvements
+The project has recently addressed these issues:
+- Fixed virtual environment activation in setup script (using .venv path)
+- Improved .env file handling with better error messages
+- Added colored output in shell scripts for better UX
+- Made scripts executable with proper permissions
+
+## Common Issues to Address
+- Environment variables not loading properly
+- SSH tunnel connection failures
+- Certificate renewal problems
+- Permissions issues with Docker volumes
+- Configuration syntax errors in Nginx
 
 ## AI Assistant Interaction Guidelines
 
