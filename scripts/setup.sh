@@ -126,18 +126,22 @@ else
   info "UV is already installed: $(uv --version)"
 fi
 
-info "Syncing project dependencies..."
-uv sync --all-extras || handle_error 19 "Failed to sync project dependencies with UV"
-success "Dependencies synced successfully"
+# Create Python virtual environment if it doesn't exist
+info "Setting up Python virtual environment..."
+if [ ! -f venv/bin/activate ]; then
+  info "Creating new virtual environment..."
+  uv venv || handle_error 19 "Failed to create virtual environment with UV"
+  success "Virtual environment created successfully"
+fi
 
 # Activate virtual environment
 info "Activating virtual environment..."
-if [ -f venv/bin/activate ]; then
-  source venv/bin/activate || handle_error 20 "Failed to activate virtual environment"
-  success "Virtual environment activated successfully"
-else
-  handle_error 21 "Virtual environment activation script not found"
-fi
+source venv/bin/activate || handle_error 20 "Failed to activate virtual environment"
+success "Virtual environment activated successfully"
+
+info "Syncing project dependencies..."
+uv sync --all-extras || handle_error 21 "Failed to sync project dependencies with UV"
+success "Dependencies synced successfully"
 
 # Set up environment variables
 info "Setting up environment variables..."
