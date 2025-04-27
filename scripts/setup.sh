@@ -108,7 +108,6 @@ fi
 info "Creating required directories..."
 mkdir -p logs || handle_error 14 "Failed to create logs directory"
 mkdir -p certs || handle_error 15 "Failed to create certs directory"
-mkdir -p venv || handle_error 16 "Failed to create venv directory"
 success "Directories created successfully"
 
 # Check and set up Python environment with uv
@@ -128,7 +127,7 @@ fi
 
 # Create Python virtual environment if it doesn't exist
 info "Setting up Python virtual environment..."
-if [ ! -f venv/bin/activate ]; then
+if [ ! -f .venv/bin/activate ]; then
   info "Creating new virtual environment..."
   uv venv || handle_error 19 "Failed to create virtual environment with UV"
   success "Virtual environment created successfully"
@@ -136,7 +135,7 @@ fi
 
 # Activate virtual environment
 info "Activating virtual environment..."
-source venv/bin/activate || handle_error 20 "Failed to activate virtual environment"
+source .venv/bin/activate || handle_error 20 "Failed to activate virtual environment"
 success "Virtual environment activated successfully"
 
 info "Syncing project dependencies..."
