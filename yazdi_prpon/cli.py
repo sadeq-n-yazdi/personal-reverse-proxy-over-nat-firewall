@@ -75,6 +75,20 @@ def setup_ssl(domain):
         "-d", domain
     ]
     
+    # Verify Nginx is running and configured properly first
+    print("Verifying Nginx configuration before requesting certificate...")
+    verify_cmd = ["docker-compose", "exec", "nginx", "nginx", "-t"]
+    verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
+    if verify_result.returncode != 0:
+        print(f"Nginx configuration test failed: {verify_result.stderr}")
+        print("Please check your Nginx configuration before proceeding.")
+        return False
+    
+    # Ensure .well-known directory exists in certbot webroot
+    project_root = os.environ.get('PROJECT_ROOT', os.path.expanduser('~/code/personal-reverse-proxy-over-firewall'))
+    webroot_dir = os.path.join(project_root, "certbot", "www", ".well-known", "acme-challenge")
+    os.makedirs(webroot_dir, exist_ok=True)
+    
     print(f"Running command: {' '.join(cmd)}")
     print("This may take a moment...")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -88,13 +102,21 @@ def setup_ssl(domain):
         print("---")
         print(result.stderr)
         print("---")
+        
+        # Provide troubleshooting tips
+        print("\nTroubleshooting tips:")
+        print("1. Make sure Nginx is running and accessible on port 80")
+        print("2. Check that the domain points to your server's IP")
+        print("3. Verify that port 80 is open in your firewall")
+        print(f"4. Try accessing http://{domain}/.well-known/acme-challenge/ in your browser")
+        
         return False
 
 def create_config(domain, local_port, allowed_ip):
     """Create nginx configuration from template"""
     # Get project root directory
     project_root = os.environ.get('PROJECT_ROOT', os.path.expanduser('~/code/personal-reverse-proxy-over-firewall'))
-    template_path = os.path.join(project_root, "nginx", "template.conf")
+    template_path = os.path.join(project_root, "nginx", "templates", "template.conf")
     
     print(f"Using project root: {project_root}")
     print(f"Template path: {template_path}")
@@ -114,14 +136,20 @@ def create_config(domain, local_port, allowed_ip):
         config = config.replace("{{LOCAL_PORT}}", str(local_port))
         config = config.replace("{{ALLOWED_IP}}", allowed_ip)
         
-        config_path = os.path.join(project_root, "nginx", f"{domain}.conf")
-        print(f"Writing configuration to: {config_path}")
+        # Create directories if they don't exist
+        available_dir = os.path.join(project_root, "nginx", "available")
+        os.makedirs(available_dir, exist_ok=True)
         
-        # Ensure the nginx directory exists
-        nginx_dir = os.path.join(project_root, "nginx")
-        os.makedirs(nginx_dir, exist_ok=True)
+        # Write to available directory first
+        available_path = os.path.join(available_dir, f"{domain}.conf")
+        print(f"Writing configuration to available: {available_path}")
+        with open(available_path, 'w') as f:
+            f.write(config)
         
-        with open(config_path, 'w') as f:
+        # Then copy to active conf.d directory
+        active_path = os.path.join(project_root, "nginx", f"{domain}.conf")
+        print(f"Copying configuration to active directory: {active_path}")
+        with open(active_path, 'w') as f:
             f.write(config)
         
         print(f"Nginx configuration for {domain} created successfully")

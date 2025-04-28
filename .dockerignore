@@ -1,0 +1,13 @@
+# Don't copy these files to Docker context
+.git
+.gitignore
+.env
+.env.*
+no-commit/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+ENV/
