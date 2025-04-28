@@ -240,6 +240,13 @@ fi
 # Get the project directory
 PROJECT_DIR=${PROJECT_ROOT:-$(dirname $(dirname $(readlink -f $0)))}
 
+# Source .env file to get environment variables
+if [ -f "${PROJECT_DIR}/.env" ]; then
+  set -a
+  source "${PROJECT_DIR}/.env"
+  set +a
+fi
+
 # Activate virtual environment if it exists
 if [ -f "${PROJECT_DIR}/.venv/bin/activate" ]; then
   source "${PROJECT_DIR}/.venv/bin/activate"
@@ -258,16 +265,34 @@ cat > ~/.proxy-manager-env << EOF || handle_error 34 "Failed to create environme
 PROJECT_ROOT="${PROJECT_ROOT_ABS}"
 EOF
 
+# Make sure environment variables are globally available
+info "Creating system-wide environment file..."
+cat > /etc/profile.d/proxy-manager.sh << EOF || handle_error 35 "Failed to create system-wide environment file"
+#!/bin/bash
+# Global environment variables for proxy-manager
+export CF_API_TOKEN="${CF_API_TOKEN}"
+export CF_ZONE_ID="${CF_ZONE_ID}"
+export CF_EMAIL="${CF_EMAIL}"
+export BASE_DOMAIN="${BASE_DOMAIN}"
+export SERVER_IP="${SERVER_IP}"
+export SERVER_USER="${SERVER_USER}"
+export PROJECT_ROOT="${PROJECT_ROOT_ABS}"
+EOF
+chmod +x /etc/profile.d/proxy-manager.sh || handle_error 36 "Failed to make environment file executable"
+
 success "proxy-manager command set up successfully"
 
 # Start services
 info "Starting Docker services..."
-docker-compose up -d || handle_error 35 "Failed to start Docker services"
+docker-compose up -d || handle_error 37 "Failed to start Docker services"
 success "Docker services started successfully"
 
 echo "${GREEN}-----------------------------------------${NORMAL}"
 echo "${BOLD}${GREEN}✅ Setup completed successfully!${NORMAL}"
 echo "${GREEN}-----------------------------------------${NORMAL}"
-echo "${BOLD}Use 'proxy-manager setup --subdomain example --local-port 3000 --allowed-ip 1.2.3.4' to create a new proxy${NORMAL}"
+echo "${BOLD}Use the following commands:${NORMAL}"
+echo "  ${BLUE}proxy-manager env${NORMAL}            - Check environment variables are set correctly"
+echo "  ${BLUE}proxy-manager setup${NORMAL}          - Create a new proxy (example below)"
+echo "  ${BOLD}proxy-manager setup --subdomain example --local-port 3000 --allowed-ip 1.2.3.4${NORMAL}"
 echo "${GREEN}-----------------------------------------${NORMAL}"
 exit 0

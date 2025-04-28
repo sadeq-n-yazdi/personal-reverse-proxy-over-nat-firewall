@@ -6,6 +6,29 @@ import subprocess
 import requests
 
 # Cloudflare API configuration
+# If running in a script, try to load .env file directly
+try:
+    from dotenv import load_dotenv
+    
+    # Try to find .env file in current directory or parent directories
+    env_path = None
+    current_dir = os.path.abspath(os.curdir)
+    while current_dir != os.path.dirname(current_dir):  # Stop at root
+        potential_env = os.path.join(current_dir, '.env')
+        if os.path.isfile(potential_env):
+            env_path = potential_env
+            break
+        current_dir = os.path.dirname(current_dir)
+    
+    if env_path:
+        load_dotenv(env_path)
+        print(f"Loaded environment from {env_path}")
+except ImportError:
+    print("python-dotenv not installed, using system environment variables")
+except Exception as e:
+    print(f"Error loading .env file: {str(e)}")
+
+# Get environment variables
 CF_API_TOKEN = os.environ.get('CF_API_TOKEN')
 CF_ZONE_ID = os.environ.get('CF_ZONE_ID')
 CF_EMAIL = os.environ.get('CF_EMAIL')
@@ -166,6 +189,73 @@ def create_tunnel_command(local_port, remote_port):
     command = f"ssh -R {remote_port}:localhost:{local_port} {server_user}@{server_ip}"
     return command
 
+def check_environment():
+    """Check if required environment variables are set and load from .env if necessary"""
+    required_vars = ['CF_API_TOKEN', 'CF_ZONE_ID', 'CF_EMAIL', 'BASE_DOMAIN', 'SERVER_IP']
+    missing_vars = []
+    
+    for var in required_vars:
+        if not os.environ.get(var):
+            missing_vars.append(var)
+    
+    if missing_vars:
+        print(f"Missing required environment variables: {', '.join(missing_vars)}")
+        print("Attempting to load from .env file...")
+        
+        # Try to find and load .env file
+        project_root = os.environ.get('PROJECT_ROOT')
+        env_paths = [
+            os.path.join(os.getcwd(), '.env'),                      # Current directory
+            os.path.join(os.path.expanduser('~'), '.env'),          # Home directory
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')  # Project directory
+        ]
+        
+        if project_root:
+            env_paths.insert(0, os.path.join(project_root, '.env'))  # Add PROJECT_ROOT if set
+        
+        loaded = False
+        for path in env_paths:
+            if os.path.isfile(path):
+                print(f"Found .env file at {path}")
+                try:
+                    # Manual loading as fallback
+                    with open(path, 'r') as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith('#') or '=' not in line:
+                                continue
+                            key, value = line.split('=', 1)
+                            os.environ[key] = value
+                    loaded = True
+                    print("Successfully loaded environment variables from .env file")
+                    break
+                except Exception as e:
+                    print(f"Error loading .env file: {str(e)}")
+        
+        if not loaded:
+            print("Could not find or load .env file")
+            return False
+        
+        # Re-check if variables are set
+        still_missing = []
+        for var in required_vars:
+            if not os.environ.get(var):
+                still_missing.append(var)
+        
+        if still_missing:
+            print(f"Still missing required environment variables after loading .env: {', '.join(still_missing)}")
+            print("Please run the setup script or set these variables manually")
+            return False
+    
+    # Reload global variables with new environment values
+    global CF_API_TOKEN, CF_ZONE_ID, CF_EMAIL, BASE_DOMAIN
+    CF_API_TOKEN = os.environ.get('CF_API_TOKEN')
+    CF_ZONE_ID = os.environ.get('CF_ZONE_ID')
+    CF_EMAIL = os.environ.get('CF_EMAIL')
+    BASE_DOMAIN = os.environ.get('BASE_DOMAIN')
+    
+    return True
+
 def main():
     parser = argparse.ArgumentParser(description="Reverse proxy manager")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -181,7 +271,27 @@ def main():
     tunnel_parser.add_argument("--local-port", type=int, required=True, help="Local port to forward")
     tunnel_parser.add_argument("--remote-port", type=int, required=True, help="Remote port on server")
     
+    # Environment check command
+    env_parser = subparsers.add_parser("env", help="Check environment variables")
+    
     args = parser.parse_args()
+    
+    if args.command == "env":
+        # Print environment variable status
+        if check_environment():
+            print("\nEnvironment variables are set correctly:")
+            print(f"CF_API_TOKEN: {'✓ Set' if CF_API_TOKEN else '✗ Not set'}")
+            print(f"CF_ZONE_ID: {'✓ Set' if CF_ZONE_ID else '✗ Not set'}")
+            print(f"CF_EMAIL: {'✓ Set' if CF_EMAIL else '✗ Not set'}")
+            print(f"BASE_DOMAIN: {BASE_DOMAIN if BASE_DOMAIN else '✗ Not set'}")
+            print(f"SERVER_IP: {os.environ.get('SERVER_IP') if os.environ.get('SERVER_IP') else '✗ Not set'}")
+            print(f"PROJECT_ROOT: {os.environ.get('PROJECT_ROOT') if os.environ.get('PROJECT_ROOT') else '✗ Not set'}")
+        return
+    
+    # Check environment before processing other commands
+    if not check_environment():
+        print("Environment check failed. Please run 'proxy-manager env' to debug.")
+        return
     
     if args.command == "setup":
         full_domain = f"{args.subdomain}.{BASE_DOMAIN}"
