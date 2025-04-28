@@ -111,12 +111,16 @@ mkdir -p certs || handle_error 15 "Failed to create certs directory"
 mkdir -p nginx/available nginx/templates || handle_error 16 "Failed to create nginx directories"
 mkdir -p certbot/www || handle_error 17 "Failed to create certbot directories"
 
+# Generate a random serial number for the certificate
+SERIAL=$(openssl rand -hex 8)
+
 # Create default self-signed certificate for Nginx
 info "Creating self-signed certificate for default server..."
 openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
   -keyout nginx/default-key.pem \
   -out nginx/default-cert.pem \
   -subj "/CN=localhost" \
+  -addext "serialNumber=$SERIAL" \
   -quiet || handle_error 18 "Failed to create self-signed certificate"
 
 success "Directories created successfully"
