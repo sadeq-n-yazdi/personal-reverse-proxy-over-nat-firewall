@@ -91,6 +91,52 @@ def create_subdomain(subdomain):
 
 def setup_ssl(domain):
     """Setup SSL certificate using certbot"""
+    # Create a fake certificate first so Nginx can start
+    print("Creating temporary self-signed certificate for initial configuration...")
+    
+    project_root = os.environ.get('PROJECT_ROOT', os.path.expanduser('~/code/personal-reverse-proxy-over-firewall'))
+    
+    # Create necessary directories
+    cert_dir = os.path.join(project_root, "certs", "live", domain)
+    os.makedirs(cert_dir, exist_ok=True)
+    
+    # Generate temporary self-signed certificate
+    temp_cert_cmd = [
+        "openssl", "req", "-x509", "-nodes", "-days", "365", "-newkey", "rsa:2048",
+        "-keyout", os.path.join(cert_dir, "privkey.pem"),
+        "-out", os.path.join(cert_dir, "fullchain.pem"),
+        "-subj", f"/CN={domain}"
+    ]
+    try:
+        subprocess.run(temp_cert_cmd, check=True, capture_output=True)
+        print("Temporary certificate created successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to create temporary certificate: {e.stderr}")
+        print("Continuing anyway...")
+    
+    # Restart Nginx to apply temporary configuration
+    print("Restarting Nginx with temporary certificate...")
+    restart_cmd = ["docker-compose", "restart", "nginx"]
+    restart_result = subprocess.run(restart_cmd, capture_output=True, text=True)
+    if restart_result.returncode != 0:
+        print(f"Failed to restart Nginx: {restart_result.stderr}")
+        print("Trying to continue anyway...")
+    
+    # Verify Nginx is running and configured properly
+    print("Verifying Nginx configuration...")
+    verify_cmd = ["docker-compose", "exec", "-T", "nginx", "nginx", "-t"]
+    verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
+    if verify_result.returncode != 0:
+        print(f"Nginx configuration test failed: {verify_result.stderr}")
+        print("Continuing anyway to attempt certificate generation...")
+    else:
+        print("Nginx configuration test passed.")
+    
+    # Ensure .well-known directory exists in certbot webroot
+    webroot_dir = os.path.join(project_root, "certbot", "www", ".well-known", "acme-challenge")
+    os.makedirs(webroot_dir, exist_ok=True)
+    
+    # Now run certbot
     cmd = [
         "docker-compose", "run", "--rm", "certbot", "certonly",
         "--webroot", "--webroot-path=/var/www/certbot",
@@ -98,27 +144,20 @@ def setup_ssl(domain):
         "-d", domain
     ]
     
-    # Verify Nginx is running and configured properly first
-    print("Verifying Nginx configuration before requesting certificate...")
-    verify_cmd = ["docker-compose", "exec", "nginx", "nginx", "-t"]
-    verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
-    if verify_result.returncode != 0:
-        print(f"Nginx configuration test failed: {verify_result.stderr}")
-        print("Please check your Nginx configuration before proceeding.")
-        return False
-    
-    # Ensure .well-known directory exists in certbot webroot
-    project_root = os.environ.get('PROJECT_ROOT', os.path.expanduser('~/code/personal-reverse-proxy-over-firewall'))
-    webroot_dir = os.path.join(project_root, "certbot", "www", ".well-known", "acme-challenge")
-    os.makedirs(webroot_dir, exist_ok=True)
-    
-    print(f"Running command: {' '.join(cmd)}")
+    print(f"Running certbot command: {' '.join(cmd)}")
     print("This may take a moment...")
     result = subprocess.run(cmd, capture_output=True, text=True)
     print(f"Command exit code: {result.returncode}")
     
     if result.returncode == 0:
         print(f"SSL certificate for {domain} created successfully")
+        
+        # Restart Nginx to apply the new certificate
+        print("Restarting Nginx to apply new certificate...")
+        restart_result = subprocess.run(["docker-compose", "restart", "nginx"], capture_output=True, text=True)
+        if restart_result.returncode != 0:
+            print(f"Warning: Failed to restart Nginx: {restart_result.stderr}")
+        
         return True
     else:
         print(f"Failed to create SSL certificate. Error details:")
@@ -132,6 +171,7 @@ def setup_ssl(domain):
         print("2. Check that the domain points to your server's IP")
         print("3. Verify that port 80 is open in your firewall")
         print(f"4. Try accessing http://{domain}/.well-known/acme-challenge/ in your browser")
+        print("5. Check Docker logs with: docker-compose logs nginx certbot")
         
         return False
 
