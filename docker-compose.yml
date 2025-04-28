@@ -11,20 +11,24 @@ services:
       - ./nginx:/etc/nginx/conf.d
       - ./certs:/etc/letsencrypt
       - ./logs:/var/log/nginx
+      - ./certbot/www:/var/www/certbot
     restart: unless-stopped
     networks:
       - proxy-network
-
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    
   certbot:
     image: certbot/certbot
     container_name: certbot
     volumes:
       - ./certs:/etc/letsencrypt
-      - ./nginx:/etc/nginx/conf.d
+      - ./certbot/www:/var/www/certbot
     depends_on:
       - nginx
-    command: renew
-    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;"
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
+    restart: unless-stopped
+    networks:
+      - proxy-network
 
 networks:
   proxy-network:

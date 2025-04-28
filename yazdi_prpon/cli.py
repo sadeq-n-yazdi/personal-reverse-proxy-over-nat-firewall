@@ -13,11 +13,27 @@ BASE_DOMAIN = os.environ.get('BASE_DOMAIN')
 
 def create_subdomain(subdomain):
     """Create a subdomain using Cloudflare API"""
-    if not all([CF_API_TOKEN, CF_ZONE_ID, CF_EMAIL, BASE_DOMAIN]):
-        print("Error: Cloudflare environment variables not set")
+    # Check for required environment variables
+    missing_vars = []
+    for var_name, var_value in [
+        ('CF_API_TOKEN', CF_API_TOKEN),
+        ('CF_ZONE_ID', CF_ZONE_ID),
+        ('CF_EMAIL', CF_EMAIL),
+        ('BASE_DOMAIN', BASE_DOMAIN),
+        ('SERVER_IP', os.environ.get('SERVER_IP'))
+    ]:
+        if not var_value:
+            missing_vars.append(var_name)
+    
+    if missing_vars:
+        print(f"Error: The following environment variables are not set: {', '.join(missing_vars)}")
+        print("Make sure you've run the setup script and sourced the environment.")
         return False
     
     full_domain = f"{subdomain}.{BASE_DOMAIN}"
+    server_ip = os.environ.get('SERVER_IP')
+    
+    print(f"Creating A record: {subdomain}.{BASE_DOMAIN} -> {server_ip}")
     
     headers = {
         "Authorization": f"Bearer {CF_API_TOKEN}",
@@ -27,19 +43,27 @@ def create_subdomain(subdomain):
     data = {
         "type": "A",
         "name": subdomain,
-        "content": os.environ.get('SERVER_IP'),
+        "content": server_ip,
         "ttl": 1,
         "proxied": False
     }
     
     url = f"https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records"
     
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code == 200:
-        print(f"Subdomain {full_domain} created successfully")
-        return True
-    else:
-        print(f"Failed to create subdomain: {response.text}")
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response_json = response.json()
+        
+        if response.status_code == 200 and response_json.get('success'):
+            print(f"Subdomain {full_domain} created successfully")
+            return True
+        else:
+            error_msg = response_json.get('errors', [{'message': 'Unknown error'}])[0].get('message')
+            print(f"Failed to create subdomain: {error_msg}")
+            print(f"Full response: {response.text}")
+            return False
+    except Exception as e:
+        print(f"Error making request to Cloudflare API: {str(e)}")
         return False
 
 def setup_ssl(domain):
@@ -51,34 +75,88 @@ def setup_ssl(domain):
         "-d", domain
     ]
     
+    # Verify Nginx is running and configured properly first
+    print("Verifying Nginx configuration before requesting certificate...")
+    verify_cmd = ["docker-compose", "exec", "nginx", "nginx", "-t"]
+    verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
+    if verify_result.returncode != 0:
+        print(f"Nginx configuration test failed: {verify_result.stderr}")
+        print("Please check your Nginx configuration before proceeding.")
+        return False
+    
+    # Ensure .well-known directory exists in certbot webroot
+    project_root = os.environ.get('PROJECT_ROOT', os.path.expanduser('~/code/personal-reverse-proxy-over-firewall'))
+    webroot_dir = os.path.join(project_root, "certbot", "www", ".well-known", "acme-challenge")
+    os.makedirs(webroot_dir, exist_ok=True)
+    
+    print(f"Running command: {' '.join(cmd)}")
+    print("This may take a moment...")
     result = subprocess.run(cmd, capture_output=True, text=True)
+    print(f"Command exit code: {result.returncode}")
+    
     if result.returncode == 0:
         print(f"SSL certificate for {domain} created successfully")
         return True
     else:
-        print(f"Failed to create SSL certificate: {result.stderr}")
+        print(f"Failed to create SSL certificate. Error details:")
+        print("---")
+        print(result.stderr)
+        print("---")
+        
+        # Provide troubleshooting tips
+        print("\nTroubleshooting tips:")
+        print("1. Make sure Nginx is running and accessible on port 80")
+        print("2. Check that the domain points to your server's IP")
+        print("3. Verify that port 80 is open in your firewall")
+        print(f"4. Try accessing http://{domain}/.well-known/acme-challenge/ in your browser")
+        
         return False
 
 def create_config(domain, local_port, allowed_ip):
     """Create nginx configuration from template"""
     # Get project root directory
     project_root = os.environ.get('PROJECT_ROOT', os.path.expanduser('~/code/personal-reverse-proxy-over-firewall'))
-    template_path = os.path.join(project_root, "nginx", "template.conf")
+    template_path = os.path.join(project_root, "nginx", "templates", "template.conf")
     
-    with open(template_path, 'r') as f:
-        template = f.read()
+    print(f"Using project root: {project_root}")
+    print(f"Template path: {template_path}")
     
-    config = template.replace("{{DOMAIN}}", domain)
-    config = config.replace("{{LOCAL_PORT}}", str(local_port))
-    config = config.replace("{{ALLOWED_IP}}", allowed_ip)
+    if not os.path.exists(template_path):
+        print(f"Error: Template file not found at {template_path}")
+        return False
     
-    config_path = os.path.join(project_root, "nginx", f"{domain}.conf")
-    
-    with open(config_path, 'w') as f:
-        f.write(config)
-    
-    print(f"Nginx configuration for {domain} created")
-    return True
+    try:
+        with open(template_path, 'r') as f:
+            template = f.read()
+        
+        print("Template loaded successfully")
+        print(f"Configuring for domain: {domain}, local port: {local_port}, allowed IP: {allowed_ip}")
+        
+        config = template.replace("{{DOMAIN}}", domain)
+        config = config.replace("{{LOCAL_PORT}}", str(local_port))
+        config = config.replace("{{ALLOWED_IP}}", allowed_ip)
+        
+        # Create directories if they don't exist
+        available_dir = os.path.join(project_root, "nginx", "available")
+        os.makedirs(available_dir, exist_ok=True)
+        
+        # Write to available directory first
+        available_path = os.path.join(available_dir, f"{domain}.conf")
+        print(f"Writing configuration to available: {available_path}")
+        with open(available_path, 'w') as f:
+            f.write(config)
+        
+        # Then copy to active conf.d directory
+        active_path = os.path.join(project_root, "nginx", f"{domain}.conf")
+        print(f"Copying configuration to active directory: {active_path}")
+        with open(active_path, 'w') as f:
+            f.write(config)
+        
+        print(f"Nginx configuration for {domain} created successfully")
+        return True
+    except Exception as e:
+        print(f"Error creating Nginx configuration: {str(e)}")
+        return False
 
 def create_tunnel_command(local_port, remote_port):
     """Generate SSH reverse tunnel command"""
@@ -107,12 +185,31 @@ def main():
     
     if args.command == "setup":
         full_domain = f"{args.subdomain}.{BASE_DOMAIN}"
-        if create_subdomain(args.subdomain):
-            if create_config(full_domain, args.local_port, args.allowed_ip):
-                if setup_ssl(full_domain):
-                    print("Restarting nginx...")
-                    subprocess.run(["docker-compose", "restart", "nginx"])
-                    print(f"\nSetup complete for {full_domain}")
+        print(f"\n=== Setting up {full_domain} ===\n")
+        
+        print("Step 1: Creating subdomain...")
+        subdomain_success = create_subdomain(args.subdomain)
+        print(f"Subdomain creation {'successful' if subdomain_success else 'failed'}\n")
+        
+        if subdomain_success:
+            print("Step 2: Creating Nginx configuration...")
+            config_success = create_config(full_domain, args.local_port, args.allowed_ip)
+            print(f"Configuration creation {'successful' if config_success else 'failed'}\n")
+            
+            if config_success:
+                print("Step 3: Setting up SSL certificate...")
+                ssl_success = setup_ssl(full_domain)
+                print(f"SSL setup {'successful' if ssl_success else 'failed'}\n")
+                
+                if ssl_success:
+                    print("Step 4: Restarting Nginx...")
+                    restart_result = subprocess.run(["docker-compose", "restart", "nginx"], capture_output=True, text=True)
+                    if restart_result.returncode == 0:
+                        print("Nginx restarted successfully\n")
+                    else:
+                        print(f"Nginx restart failed: {restart_result.stderr}\n")
+                    
+                    print(f"\n=== Setup complete for {full_domain} ===")
                     print(f"To create a tunnel, run: proxy-manager tunnel --local-port {args.local_port} "
                           "--remote-port <remote_port>")
     
