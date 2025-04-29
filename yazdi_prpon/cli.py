@@ -89,8 +89,8 @@ def create_subdomain(subdomain):
         print(f"Error making request to Cloudflare API: {str(e)}")
         return False
 
-def setup_ssl(domain):
-    """Setup SSL certificate using certbot"""
+def setup_ssl(domain, use_dns_cloudflare=True):
+    """Setup SSL certificate using certbot with DNS or HTTP challenges"""
     # Create a fake certificate first so Nginx can start
     print("Creating temporary self-signed certificate for initial configuration...")
     
@@ -132,17 +132,54 @@ def setup_ssl(domain):
     else:
         print("Nginx configuration test passed.")
     
-    # Ensure .well-known directory exists in certbot webroot
-    webroot_dir = os.path.join(project_root, "certbot", "www", ".well-known", "acme-challenge")
-    os.makedirs(webroot_dir, exist_ok=True)
+    # Determine which challenge method to use
+    if use_dns_cloudflare:
+        print("Using DNS-01 challenge with Cloudflare API for certificate issuance...")
+        # Create certbot config directory if it doesn't exist
+        certbot_config_dir = os.path.join(project_root, "certbot", "config")
+        os.makedirs(certbot_config_dir, exist_ok=True)
+        
+        # Create Cloudflare credentials file
+        cf_credentials_file = os.path.join(certbot_config_dir, "cloudflare.ini")
+        
+        # Make sure .env file is loaded properly
+        check_environment()
+        
+        cf_api_token = os.environ.get('CF_API_TOKEN')
+        if not cf_api_token:
+            print("Error: CF_API_TOKEN environment variable is not set")
+            print("Falling back to HTTP-01 challenge method")
+            use_dns_cloudflare = False
+        else:
+            # Create Cloudflare credentials file with proper permissions
+            with open(cf_credentials_file, 'w') as f:
+                f.write(f"dns_cloudflare_api_token = {cf_api_token}\n")
+            
+            # Set proper permissions (600) for credentials file
+            os.chmod(cf_credentials_file, 0o600)
+            print(f"Created Cloudflare credentials file at {cf_credentials_file}")
     
-    # Now run certbot
-    cmd = [
-        "docker-compose", "run", "--rm", "certbot", "certonly",
-        "--webroot", "--webroot-path=/var/www/certbot",
-        "--email", CF_EMAIL, "--agree-tos", "--no-eff-email",
-        "-d", domain
-    ]
+    # If not using DNS challenge or fallback from DNS failure, ensure webroot is prepared
+    if not use_dns_cloudflare:
+        print("Using HTTP-01 challenge method for certificate issuance...")
+        webroot_dir = os.path.join(project_root, "certbot", "www", ".well-known", "acme-challenge")
+        os.makedirs(webroot_dir, exist_ok=True)
+    
+    # Prepare certbot command based on challenge method
+    if use_dns_cloudflare:
+        cmd = [
+            "docker-compose", "run", "--rm", "certbot", "certonly",
+            "--dns-cloudflare", "--dns-cloudflare-credentials", "/etc/letsencrypt/cloudflare.ini",
+            "--email", CF_EMAIL, "--agree-tos", "--no-eff-email",
+            "-d", domain
+        ]
+    else:
+        cmd = [
+            "docker-compose", "run", "--rm", "certbot", "certonly",
+            "--webroot", "--webroot-path=/var/www/certbot",
+            "--email", CF_EMAIL, "--agree-tos", "--no-eff-email",
+            "-d", domain
+        ]
     
     print(f"Running certbot command: {' '.join(cmd)}")
     print("This may take a moment...")
@@ -160,18 +197,24 @@ def setup_ssl(domain):
         
         return True
     else:
-        print(f"Failed to create SSL certificate. Error details:")
+        print("Failed to create SSL certificate. Error details:")
         print("---")
         print(result.stderr)
         print("---")
         
-        # Provide troubleshooting tips
+        # Provide challenge-specific troubleshooting tips
         print("\nTroubleshooting tips:")
-        print("1. Make sure Nginx is running and accessible on port 80")
-        print("2. Check that the domain points to your server's IP")
-        print("3. Verify that port 80 is open in your firewall")
-        print(f"4. Try accessing http://{domain}/.well-known/acme-challenge/ in your browser")
-        print("5. Check Docker logs with: docker-compose logs nginx certbot")
+        if use_dns_cloudflare:
+            print("1. Check that your Cloudflare API token has sufficient permissions (Zone:DNS:Edit)")
+            print("2. Verify the domain is managed by the Cloudflare zone specified in CF_ZONE_ID")
+            print("3. Check Docker logs with: docker-compose logs certbot")
+            print("4. Try using HTTP challenge as a fallback: proxy-manager setup --subdomain yourdomain --local-port xxxx --allowed-ip x.x.x.x --use-http-challenge")
+        else:
+            print("1. Make sure Nginx is running and accessible on port 80")
+            print("2. Check that the domain points to your server's IP")
+            print("3. Verify that port 80 is open in your firewall")
+            print(f"4. Try accessing http://{domain}/.well-known/acme-challenge/ in your browser")
+            print("5. Check Docker logs with: docker-compose logs nginx certbot")
         
         return False
 
@@ -297,7 +340,7 @@ def check_environment():
     return True
 
 def main():
-    parser = argparse.ArgumentParser(description="Reverse proxy manager")
+    parser = argparse.ArgumentParser(description="Reverse proxy manager (with Cloudflare DNS authentication)")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
     
     # Setup command
@@ -305,6 +348,7 @@ def main():
     setup_parser.add_argument("--subdomain", required=True, help="Subdomain to create")
     setup_parser.add_argument("--local-port", type=int, required=True, help="Local port to forward")
     setup_parser.add_argument("--allowed-ip", required=True, help="IP allowed to access the proxy")
+    setup_parser.add_argument("--use-http-challenge", action="store_true", help="Use HTTP-01 challenge instead of DNS-01 for certificate issuance")
     
     # Tunnel command
     tunnel_parser = subparsers.add_parser("tunnel", help="Create SSH tunnel")
@@ -348,7 +392,9 @@ def main():
             
             if config_success:
                 print("Step 3: Setting up SSL certificate...")
-                ssl_success = setup_ssl(full_domain)
+                # Use DNS challenge by default, unless --use-http-challenge is specified
+                use_dns_cloudflare = not args.use_http_challenge
+                ssl_success = setup_ssl(full_domain, use_dns_cloudflare=use_dns_cloudflare)
                 print(f"SSL setup {'successful' if ssl_success else 'failed'}\n")
                 
                 if ssl_success:
