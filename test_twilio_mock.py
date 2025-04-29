@@ -1,7 +1,7 @@
-import requests
-import json
 import time
 from pprint import pprint
+
+import requests
 
 # Base configuration
 BASE_URL = "http://localhost:3000"

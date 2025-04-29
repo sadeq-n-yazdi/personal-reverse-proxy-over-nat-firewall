@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class SMSMessage(BaseModel):
     """Model representing a Twilio SMS message."""
-    
+
     sid: str = Field(default_factory=lambda: f"SM{uuid.uuid4().hex}")
     account_sid: str
     to: str
@@ -22,24 +22,24 @@ class SMSMessage(BaseModel):
     price: Optional[str] = None
     error_code: Optional[int] = None
     error_message: Optional[str] = None
-    
+
     class Config:
         """Pydantic model configuration."""
-        
+
         populate_by_name = True
 
 
 class SMSMessageRequest(BaseModel):
     """Model for the SMS message request body."""
-    
+
     To: str
     From: str
     Body: str
-    
-    
+
+
 class SMSMessageResponse(BaseModel):
     """Model for the SMS message response."""
-    
+
     sid: str
     date_created: str
     date_updated: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -58,16 +58,16 @@ class SMSMessageResponse(BaseModel):
     error_code: Optional[int] = None
     error_message: Optional[str] = None
     uri: str
-    
+
     class Config:
         """Pydantic model configuration."""
-        
+
         populate_by_name = True
 
 
 class LogEntry(BaseModel):
     """Model for log entries."""
-    
+
     timestamp: float = Field(default_factory=time.time)
     message_sid: str
     to: str
@@ -78,16 +78,16 @@ class LogEntry(BaseModel):
 
 class MessageStore:
     """In-memory store for messages and logs."""
-    
+
     def __init__(self):
         """Initialize an empty message store."""
         self.messages: List[SMSMessage] = []
         self.logs: List[LogEntry] = []
-    
+
     def add_message(self, message: SMSMessage) -> None:
         """Add a message to the store."""
         self.messages.append(message)
-        
+
         # Also add to logs
         log_entry = LogEntry(
             message_sid=message.sid,
@@ -97,7 +97,7 @@ class MessageStore:
             status=message.status,
         )
         self.logs.append(log_entry)
-    
+
     def get_logs(self) -> List[LogEntry]:
         """Return all logs."""
         return sorted(self.logs, key=lambda x: x.timestamp, reverse=True)

@@ -2,15 +2,14 @@
 
 import random
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
+from fastapi import FastAPI, Form, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from mock_twilio.config import settings
 from mock_twilio.models import (
-    LogEntry,
     SMSMessage,
     SMSMessageResponse,
     message_store,
@@ -35,12 +34,12 @@ app.add_middleware(
 def check_auth(request: Request) -> bool:
     """Validate basic auth credentials against configured values."""
     auth = request.headers.get("Authorization")
-    
+
     if not auth or not auth.startswith("Basic "):
         return False
-    
+
     import base64
-    
+
     try:
         credentials = base64.b64decode(auth[6:]).decode("utf-8")
         account_sid, auth_token = credentials.split(":")
@@ -99,14 +98,14 @@ async def send_message(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Authentication",
         )
-    
+
     # Check if account SID in path matches the authenticated one
     if account_sid != settings.ACCOUNT_SID:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"The requested resource /v1/Accounts/{account_sid}/Messages was not found",
         )
-    
+
     # Random failure based on configured rate
     if random.random() < settings.FAILURE_RATE:
         error_message = SMSMessage(
@@ -119,7 +118,7 @@ async def send_message(
             error_message="Queue overflow",
         )
         message_store.add_message(error_message)
-        
+
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
@@ -128,7 +127,7 @@ async def send_message(
                 "status": 400,
             },
         )
-    
+
     # Create a successful message
     message = SMSMessage(
         account_sid=account_sid,
@@ -137,7 +136,7 @@ async def send_message(
         body=Body,
     )
     message_store.add_message(message)
-    
+
     # Convert to response model
     now = datetime.utcnow().isoformat()
     return SMSMessageResponse(
@@ -164,7 +163,7 @@ async def get_logs() -> List[Dict]:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "mock_twilio.main:app",
         host=settings.HOST,

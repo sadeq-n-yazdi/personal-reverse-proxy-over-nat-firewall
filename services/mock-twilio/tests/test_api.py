@@ -38,14 +38,14 @@ def test_send_message(client, auth_headers):
         "From": "+15557654321",
         "Body": "Test message",
     }
-    
+
     account_sid = settings.ACCOUNT_SID
     response = client.post(
         f"/v1/Accounts/{account_sid}/Messages",
         headers=auth_headers,
         data=data,
     )
-    
+
     assert response.status_code == 200
     result = response.json()
     assert result["to"] == data["To"]
@@ -61,14 +61,14 @@ def test_auth_failure(client):
         "From": "+15557654321",
         "Body": "Test message",
     }
-    
+
     account_sid = settings.ACCOUNT_SID
     response = client.post(
         f"/v1/Accounts/{account_sid}/Messages",
         # No auth headers
         data=data,
     )
-    
+
     assert response.status_code == 401
 
 

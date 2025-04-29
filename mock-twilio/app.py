@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
-import random
-import string
 import datetime
-import re
 import os
+import random
+import re
+import string
+
+from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
