@@ -114,56 +114,60 @@ def create_subdomain(subdomain):
 
 def setup_ssl(domain, use_dns_cloudflare=True):
     """Setup SSL certificate using certbot with DNS or HTTP challenges"""
-    # Create a fake certificate first so Nginx can start
-    print("Creating temporary self-signed certificate for initial configuration...")
-
     project_root = os.environ.get("PROJECT_ROOT", os.path.expanduser("~/code/personal-reverse-proxy-over-firewall"))
-
-    # Create necessary directories
+    
+    # Create necessary directories for certificates
     cert_dir = os.path.join(project_root, "certs", "live", domain)
     os.makedirs(cert_dir, exist_ok=True)
+    
+    # For HTTP-01 challenge, we need a running webserver
+    if not use_dns_cloudflare:
+        print("HTTP-01 challenge requires a running Nginx server...")
+        
+        # Generate temporary self-signed certificate
+        print("Creating temporary self-signed certificate for initial configuration...")
+        temp_cert_cmd = [
+            "openssl",
+            "req",
+            "-x509",
+            "-nodes",
+            "-days",
+            "365",
+            "-newkey",
+            "rsa:2048",
+            "-keyout",
+            os.path.join(cert_dir, "privkey.pem"),
+            "-out",
+            os.path.join(cert_dir, "fullchain.pem"),
+            "-subj",
+            f"/CN={domain}",
+        ]
+        try:
+            subprocess.run(temp_cert_cmd, check=True, capture_output=True)
+            print("Temporary certificate created successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to create temporary certificate: {e.stderr}")
+            print("Continuing anyway...")
 
-    # Generate temporary self-signed certificate
-    temp_cert_cmd = [
-        "openssl",
-        "req",
-        "-x509",
-        "-nodes",
-        "-days",
-        "365",
-        "-newkey",
-        "rsa:2048",
-        "-keyout",
-        os.path.join(cert_dir, "privkey.pem"),
-        "-out",
-        os.path.join(cert_dir, "fullchain.pem"),
-        "-subj",
-        f"/CN={domain}",
-    ]
-    try:
-        subprocess.run(temp_cert_cmd, check=True, capture_output=True)
-        print("Temporary certificate created successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to create temporary certificate: {e.stderr}")
-        print("Continuing anyway...")
+        # Restart Nginx to apply temporary configuration
+        print("Restarting Nginx with temporary certificate...")
+        restart_cmd = ["docker-compose", "restart", "nginx"]
+        restart_result = subprocess.run(restart_cmd, capture_output=True, text=True)
+        if restart_result.returncode != 0:
+            print(f"Failed to restart Nginx: {restart_result.stderr}")
+            print("Trying to continue anyway...")
 
-    # Restart Nginx to apply temporary configuration
-    print("Restarting Nginx with temporary certificate...")
-    restart_cmd = ["docker-compose", "restart", "nginx"]
-    restart_result = subprocess.run(restart_cmd, capture_output=True, text=True)
-    if restart_result.returncode != 0:
-        print(f"Failed to restart Nginx: {restart_result.stderr}")
-        print("Trying to continue anyway...")
-
-    # Verify Nginx is running and configured properly
-    print("Verifying Nginx configuration...")
-    verify_cmd = ["docker-compose", "exec", "-T", "nginx", "nginx", "-t"]
-    verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
-    if verify_result.returncode != 0:
-        print(f"Nginx configuration test failed: {verify_result.stderr}")
-        print("Continuing anyway to attempt certificate generation...")
+        # Verify Nginx is running and configured properly
+        print("Verifying Nginx configuration...")
+        verify_cmd = ["docker-compose", "exec", "-T", "nginx", "nginx", "-t"]
+        verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
+        if verify_result.returncode != 0:
+            print(f"Nginx configuration test failed: {verify_result.stderr}")
+            print("Continuing anyway to attempt certificate generation...")
+        else:
+            print("Nginx configuration test passed.")
     else:
-        print("Nginx configuration test passed.")
+        print("Using DNS-01 challenge which doesn't require a running web server...")
 
     # Determine which challenge method to use
     if use_dns_cloudflare:
