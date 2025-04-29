@@ -29,6 +29,21 @@ services:
     restart: unless-stopped
     networks:
       - proxy-network
+      
+  mock-twilio:
+    image: python:3.9-alpine
+    container_name: mock-twilio
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./mock-twilio:/app
+    working_dir: /app
+    command: >
+      sh -c "pip install --no-cache-dir flask==2.0.1 werkzeug==2.0.3 markupsafe==2.0.1 jinja2==3.0.3 itsdangerous==2.0.1 click==8.0.4 && 
+      python app.py"
+    restart: unless-stopped
+    networks:
+      - proxy-network
 
 networks:
   proxy-network:
