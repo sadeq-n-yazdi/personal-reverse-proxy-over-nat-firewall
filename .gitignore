@@ -66,3 +66,23 @@ Sessionx.vim
 certs/
 logs/
 .env
+
+# Certbot
+certbot/config/*
+!certbot/config/.gitkeep
+certbot/www/.well-known/acme-challenge/*
+!certbot/www/.well-known/acme-challenge/.gitkeep
+
+# Sensitive data
+*.pem
+*.key
+cloudflare.ini
+*_credentials.json
+*_token.json
+
+# Temporary test files
+**/test-*.conf
+test_cloudflare.*
+
+# No-commit directory for local testing
+no-commit/
