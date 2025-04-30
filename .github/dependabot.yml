@@ -5,13 +5,13 @@
 
 version: 2
 updates:
-  - package-ecosystem: "docker" # See documentation for possible values
+  - package-ecosystem: "docker" 
     directories:
       - "/"
       - "/services/mock-twilio/"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "uv" # See documentation for possible values
+  - package-ecosystem: "uv" 
     directory: 
       - "/"
       - "/services/mock-twilio/"
