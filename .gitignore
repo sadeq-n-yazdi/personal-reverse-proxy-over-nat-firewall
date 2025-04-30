@@ -48,7 +48,6 @@ htmlcov/
 *.ipr
 .idea_modules/
 out/
-.idea/
 
 # Vim
 [._]*.s[a-v][a-z]
@@ -65,7 +64,6 @@ Sessionx.vim
 # Project specific
 certs/
 logs/
-.env
 
 # Certbot
 certbot/config/*

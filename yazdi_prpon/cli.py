@@ -115,15 +115,15 @@ def create_subdomain(subdomain):
 def setup_ssl(domain, use_dns_cloudflare=True):
     """Setup SSL certificate using certbot with DNS or HTTP challenges"""
     project_root = os.environ.get("PROJECT_ROOT", os.path.expanduser("~/code/personal-reverse-proxy-over-firewall"))
-    
+
     # Create necessary directories for certificates
     cert_dir = os.path.join(project_root, "certs", "live", domain)
     os.makedirs(cert_dir, exist_ok=True)
-    
+
     # For HTTP-01 challenge, we need a running webserver
     if not use_dns_cloudflare:
         print("HTTP-01 challenge requires a running Nginx server...")
-        
+
         # Generate temporary self-signed certificate
         print("Creating temporary self-signed certificate for initial configuration...")
         temp_cert_cmd = [

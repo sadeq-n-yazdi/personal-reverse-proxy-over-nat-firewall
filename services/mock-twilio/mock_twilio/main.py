@@ -99,14 +99,14 @@ async def send_message(
             detail="Invalid Authentication",
         )
 
-    # Check if account SID in path matches the authenticated one
+    # Check if account SID in the path matches the authenticated one
     if account_sid != settings.ACCOUNT_SID:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"The requested resource /v1/Accounts/{account_sid}/Messages was not found",
         )
 
-    # Random failure based on configured rate
+    # Random failure based on a configured rate
     if random.random() < settings.FAILURE_RATE:
         error_message = SMSMessage(
             account_sid=account_sid,
@@ -137,7 +137,7 @@ async def send_message(
     )
     message_store.add_message(message)
 
-    # Convert to response model
+    # Convert to a response model
     now = datetime.utcnow().isoformat()
     return SMSMessageResponse(
         sid=message.sid,

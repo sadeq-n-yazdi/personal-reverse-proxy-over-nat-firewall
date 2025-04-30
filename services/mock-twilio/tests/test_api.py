@@ -73,7 +73,7 @@ def test_auth_failure(client):
 
 
 def test_logs(client):
-    """Test the logs endpoint."""
+    """Test the log endpoint."""
     response = client.get("/logs")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
