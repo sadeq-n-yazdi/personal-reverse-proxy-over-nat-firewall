@@ -1,4 +1,3 @@
-          styleguide: .gemini/styleguide.md
 name: Gemini AI Code Reviewer
 
 on:
