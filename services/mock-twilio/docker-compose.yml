@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  mock-twilio:
+    build: .
+    container_name: mock-twilio
+    ports:
+      - "3000:3000"
+    environment:
+      - MOCK_TWILIO_ACCOUNT_SID=ACmockaccountsidxxxxxxxxxxxxxxxxxx
+      - MOCK_TWILIO_AUTH_TOKEN=mockauthtoken00000000000000000000
+      - MOCK_TWILIO_FAILURE_RATE=0.0
+      - DEBUG=true
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+    networks:
+      - twilio-net
+
+networks:
+  twilio-net:
+    name: twilio-net

@@ -10,6 +10,8 @@ The project has two main components:
 1. **Server Component** (runs on VPS):
    - Nginx reverse proxy in Docker container
    - Certbot for SSL certificate management
+     - DNS-01 challenge authentication via Cloudflare API
+     - HTTP-01 challenge fallback option
    - Configuration management through CLI
 
 2. **Client Component** (runs on local machine):
@@ -89,11 +91,17 @@ pre-commit run --all-files
 The CLI tool provides commands for managing proxies:
 
 ```bash
-# Create a new proxy
+# Create a new proxy with DNS-01 challenge (default, works behind firewalls)
 proxy-manager setup --subdomain myapp --local-port 3000 --allowed-ip 203.0.113.1
+
+# Create a new proxy with HTTP-01 challenge
+proxy-manager setup --subdomain myapp --local-port 3000 --allowed-ip 203.0.113.1 --use-http-challenge
 
 # Create a tunnel
 proxy-manager tunnel --local-port 3000 --remote-port 8080
+
+# Check environment variables status
+proxy-manager env
 ```
 
 ### Testing Changes
@@ -124,12 +132,20 @@ Test changes in both server (VPS) and client (local machine) contexts:
 - `docker-compose.yml`: Main service configuration
 - `nginx/`: Nginx configuration templates and generated configs
 - `yazdi_prpon/`: Python package with CLI tools
+  - `cli.py`: Main command-line interface
+  - `cloudflare.py`: Cloudflare API client for DNS management
 - `scripts/`: Setup and utility scripts
   - `setup.sh`: Server setup script
   - `tunnel.sh`: Client tunnel creation script
+- `services/`: Individual service components
+  - `mock-twilio/`: Mock Twilio API service for SMS verification testing
 - `certs/`: SSL certificate storage (managed by certbot)
+- `certbot/`: Certbot configuration and web root
+  - `config/`: Configuration directory, including Cloudflare credentials
+  - `www/`: Web root for HTTP-01 challenges
 - `config.sample.yaml`: Example configuration
 - `CONTRIBUTING.md`: Guidelines for contributors
+- `README-DNS-CLOUDFLARE.md`: Documentation for DNS-01 challenge
 - `LICENSE`: MIT License information
 - `CLAUDE.md`: Instructions for Claude AI assistant
 
@@ -166,10 +182,17 @@ Pre-commit hooks are set up to ensure code quality:
 
 ## Recent Fixes and Improvements
 The project has recently addressed these issues:
+- Added DNS-01 challenge authentication with Cloudflare API
+  - Works behind firewalls where port 80 isn't accessible
+  - Improved security and reliability for certificate issuance
+  - Added comprehensive documentation in README-DNS-CLOUDFLARE.md
+- Enhanced create_subdomain function to handle existing records
 - Fixed virtual environment activation in setup script (using .venv path)
 - Improved .env file handling with better error messages
 - Added colored output in shell scripts for better UX
 - Made scripts executable with proper permissions
+- Added CORS support to Nginx templates for API usage
+- Added mock Twilio service for SMS verification testing
 
 ## Common Issues to Address
 - Environment variables not loading properly
@@ -211,3 +234,47 @@ When modifying Docker or Nginx configurations:
 - Consider production deployment implications
 - Ensure proper error handling and logging
 - Document any change to default behaviors
+
+## Mock Twilio Service
+
+The project includes a mock Twilio service for testing SMS verification flows without using the real Twilio API.
+
+### Setup and Usage
+
+```bash
+# Navigate to the service directory
+cd services/mock-twilio
+
+# Set up the development environment
+./setup.sh
+
+# Run the service locally
+source .venv/bin/activate
+uvicorn mock_twilio.main:app --reload --port 3000
+
+# Or run with Docker
+docker-compose up -d
+```
+
+### Configuration
+
+The mock Twilio service can be configured via environment variables:
+
+```
+MOCK_TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxx
+MOCK_TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxx
+MOCK_TWILIO_FAILURE_RATE=0.0  # Set between 0.0-1.0 to simulate failures
+```
+
+### API Endpoints
+
+- `POST /v1/Accounts/{AccountSid}/Messages` - Send SMS messages (Twilio compatible)
+- `GET /logs` - View logs of sent messages
+
+### Development Standards
+
+The mock Twilio service follows these standards:
+- Uses uv for package management
+- Uses pre-commit hooks with ruff for code quality
+- Follows FastAPI best practices
+- Includes pytest tests

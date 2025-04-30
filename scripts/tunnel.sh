@@ -34,4 +34,4 @@ REMOTE_PORT=$2
 
 # Create SSH tunnel
 echo "Creating SSH tunnel from local port $LOCAL_PORT to remote port $REMOTE_PORT"
-ssh -R $REMOTE_PORT:localhost:$LOCAL_PORT $SERVER_USER@$SERVER_IP
+ssh -R "0.0.0.0:$REMOTE_PORT:localhost:$LOCAL_PORT" "$SERVER_USER@$SERVER_IP"

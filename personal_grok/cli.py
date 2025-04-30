@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import sys
 import subprocess
+
 import requests
-import json
 
 # Cloudflare API configuration
 CF_API_TOKEN = os.environ.get('CF_API_TOKEN')
@@ -118,7 +117,7 @@ def main():
     
     elif args.command == "tunnel":
         command = create_tunnel_command(args.local_port, args.remote_port)
-        print(f"Run the following command to create the tunnel:")
+        print("Run the following command to create the tunnel:")
         print(f"\n{command}\n")
     
     else:

@@ -6,6 +6,8 @@ A service application that runs on a Debian VPS and allows you to manage an Ngin
 
 - Docker-based Nginx reverse proxy
 - Automatic SSL certificate management with Certbot
+  - DNS-01 challenge authentication via Cloudflare API (works behind firewalls)
+  - HTTP-01 challenge fallback when needed
 - IP address restriction for security
 - Cloudflare API integration for subdomain management
 - CLI tool for easy management
@@ -130,15 +132,22 @@ domains:
 ### Setting Up a New Proxy (VPS)
 
 ```bash
-# On your VPS
+# On your VPS using default DNS-01 challenge (works behind firewalls)
 proxy-manager setup --subdomain myapp --local-port 3000 --allowed-ip 203.0.113.1
+
+# Or with HTTP-01 challenge method if preferred
+proxy-manager setup --subdomain myapp --local-port 3000 --allowed-ip 203.0.113.1 --use-http-challenge
 ```
 
 This will:
 1. Create a new subdomain (myapp.yourdomain.com) using Cloudflare API
 2. Generate an SSL certificate for the subdomain
+   - By default uses DNS-01 challenge via Cloudflare API (works behind firewalls)
+   - Can use HTTP-01 challenge with `--use-http-challenge` flag if needed
 3. Create an Nginx configuration with IP restrictions
 4. Restart Nginx to apply the changes
+
+> **Note**: DNS-01 challenge doesn't require your server to be publicly accessible on port 80, making it ideal for services running behind firewalls or NAT.
 
 ### Creating a Tunnel from Your Local Machine
 
@@ -214,14 +223,21 @@ autossh -M 0 -o "ServerAliveInterval 30" -o "ServerAliveCountMax 3" -R 8080:loca
 
 The following environment variables are used:
 
-- `CF_API_TOKEN`: Cloudflare API token
+- `CF_API_TOKEN`: Cloudflare API token (required for DNS-01 challenge and subdomain management)
 - `CF_ZONE_ID`: Cloudflare Zone ID for your domain
 - `CF_EMAIL`: Email associated with your Cloudflare account
 - `BASE_DOMAIN`: Your base domain (e.g., example.com)
 - `SERVER_IP`: Your VPS IP address
 - `SERVER_USER`: SSH user for your VPS (default: root)
+- `PROJECT_ROOT`: The root directory of the project (for finding config files)
 
 These are set during the setup process and stored in the `.env` file.
+
+For DNS-01 challenge authentication to work properly, the Cloudflare API token must have the following permissions:
+- Zone:DNS:Edit
+- Zone:Zone:Read
+
+See [README-DNS-CLOUDFLARE.md](README-DNS-CLOUDFLARE.md) for detailed information on DNS-based certificate validation.
 
 ### Sample Configuration Files
 
@@ -335,9 +351,20 @@ docker exec nginx nginx -s reload
 #### Certificate Issues
 
 ```bash
-# Request new certificates
+# Request new certificates with DNS-01 challenge (default)
 docker exec certbot certbot renew --force-renewal
+
+# Or for debugging specific domain with DNS challenge
+docker exec certbot certbot certonly --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini -d yourdomain.example.com
+
+# Alternatively use HTTP-01 challenge for troubleshooting
+docker exec certbot certbot certonly --webroot --webroot-path=/var/www/certbot -d yourdomain.example.com
 ```
+
+For DNS-01 challenge specific issues, check:
+1. Cloudflare API token permissions
+2. Credentials file at `certbot/config/cloudflare.ini`
+3. DNS propagation delays (may take 1-5 minutes)
 
 ## License
 

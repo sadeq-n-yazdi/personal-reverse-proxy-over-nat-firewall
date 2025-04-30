@@ -5,7 +5,7 @@ set -o pipefail
 # Check if terminal supports colors
 if [ -t 1 ] && command -v tput > /dev/null; then
   ncolors=$(tput colors)
-  if [ -n "$ncolors" ] && [ $ncolors -ge 8 ]; then
+  if [ -n "$ncolors" ] && [ "$ncolors" -ge 8 ]; then
     # Terminal supports colors
     NORMAL=$(tput sgr0)
     RED=$(tput setaf 1)

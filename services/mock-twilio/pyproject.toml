@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mock-twilio"
+version = "0.1.0"
+description = "Mock Twilio service for SMS verification testing"
+readme = "README.md"
+authors = [
+    {name = "Sadeq N. Yazdi", email = "code@sadeq.uk"},
+]
+license = {text = "MIT"}
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pre-commit>=3.3.3",
+    "ruff>=0.0.280",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+select = ["E", "F", "I", "N", "W", "B", "UP", "PL"]
+ignore = []
+fixable = ["ALL"]
+
+[tool.ruff.isort]
+known-first-party = ["mock_twilio"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
